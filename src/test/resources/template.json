@@ -1,0 +1,16 @@
+const hits = _.hits.hits
+const l = hits.length
+function expand(o) { 
+return {t:o.offence}
+}
+
+$ = {
+results:  hits.map(h=> [
+"'" + (h.fields === undefined ? "<none>": h.fields.Description[0]) + "'",
+h._source.Points,
+h._source.Fine,
+h._source.type,
+"'"+h._source.Section+"'",
+].join(',')).sort()
+}
+
