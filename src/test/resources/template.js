@@ -13,4 +13,3 @@ h._source.type,
 "'"+h._source.Section+"'",
 ].join(',')).sort()
 }
-
