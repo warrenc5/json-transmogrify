@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>test</groupId>
@@ -8,8 +8,24 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
+        <!--
+<native.skip>true</native.skip>
+        -->
     </properties>
     <build>
+        <defaultGoal>install</defaultGoal>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>README.md</include>
+                </includes>
+                <targetPath>.</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -24,6 +40,90 @@
                         </goals>
                         <configuration>
                             <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+                <version>0.11.3</version>
+                <executions>
+                    <execution>
+                        <id>generate</id>
+                        <phase>test</phase>
+                    </execution>
+                    <execution>
+                        <id>native</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>generateResourceConfig</goal> 
+                            <goal>compile-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <imageName>jsont</imageName>
+                    <mainClass>JsonT</mainClass>
+                    <skipNativeBuild>${native.skip}</skipNativeBuild>
+                    <agent>
+                        <enabled>true</enabled>
+                        <defaultMode>Standard</defaultMode>
+                        <modes>
+                            <direct>config-output-dir=${project.build.directory}/native/agent-output</direct>
+                            <conditional>
+                                <userCodeFilterPath>user-code-filter.json</userCodeFilterPath>
+                                <extraFilterPath>extra-filter.json</extraFilterPath>
+                                <parallel>true</parallel>
+                            </conditional>
+                        </modes>
+                        <options>
+                            <callerFilterFiles>
+                                <filterFile>caller-filter-file1.json</filterFile>
+                                <filterFile>caller-filter-file2.json</filterFile>
+                            </callerFilterFiles>
+                            <accessFilterFiles>
+                                <filterFile>access-filter-file1.json</filterFile>
+                                <filterFile>access-filter-file2.json</filterFile>
+                            </accessFilterFiles>
+                            <builtinCallerFilter>true</builtinCallerFilter>
+                            <builtinHeuristicFilter>true</builtinHeuristicFilter>
+                            <enableExperimentalPredefinedClasses>true</enableExperimentalPredefinedClasses>
+                            <enableExperimentalUnsafeAllocationTracing>true</enableExperimentalUnsafeAllocationTracing>
+                            <trackReflectionMetadata>true</trackReflectionMetadata>
+                        </options>
+                        <metadataCopy>
+                            <!-- you can specify metadataCopy configuration here -->
+                        </metadataCopy>
+                    </agent>
+ 
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <id>java-agent</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <phase>test</phase>
+                        <configuration>
+                            <skip>${native.skip}</skip>
+                            <executable>java</executable>
+                            <workingDirectory>${project.build.directory}</workingDirectory>
+                            <arguments>
+                                <argument>-agentlib:native-image-agent</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>JsonT</argument>
+                                <argument>test-classes/template.js</argument>
+                                <argument>test-classes/ALL_FINES.json</argument>
+                                <argument>all_fines_nsw.json</argument>
+                                <argument>UTF8</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                 </executions>

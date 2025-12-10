@@ -2,3 +2,7 @@ target
 /nb-configuration.xml
 /nbproject/
 .*.sw*
+.classpath
+.project
+.settings
+/all_fines_nsw.csv
