@@ -38,6 +38,16 @@ cat src/test/resources/ALL_FINES.json | java -classpath src/test/resources:`find
 
 ## Template
 
+Templates are JavaScript files evaluated by GraalJS. The input JSON is bound to `_` and you assign your output to `$`.
+
+- **`_`** — the parsed input JSON (read-only)
+- **`$`** — assign your result object/array to this variable to produce output
+
+> **Reserved variable names:** The name **`result`** is reserved for internal use by the
+> GraalJS/graalson runtime. Using `const result = ...` or `let result = ...` in a template
+> will fail with `TypeError: Assignment to constant "result"`. Use a different name
+> such as `merged`, `output`, `data`, etc.
+
 ```
 const hits = _.hits.hits
 const l = hits.length
@@ -125,6 +135,126 @@ Then use it like any other command:
 jsont template.js input.json output.json
 cat data.json | jsont template.js > result.json
 ```
+
+## Advanced Usage — Merging GraalVM Native Image Metadata
+
+When building a native image, GraalVM collects reachability metadata (`reflect-config.json`,
+`jni-config.json`, `proxy-config.json`, `resource-config.json`, `serialization-config.json`)
+from many libraries scattered across `target/graalvm-reachability-metadata/`. The included
+`joiner.sh` script uses `jsont` itself to merge all files of each config type into a single
+consolidated file.
+
+### Merge Templates
+
+Three JS templates handle the different config structures:
+
+| Template                 | Config Types                                                  | Strategy                                                                               |
+| ------------------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `merge-arrays.js`        | `reflect-config.json`, `jni-config.json`, `proxy-config.json` | Flat concatenation of top-level JSON arrays                                            |
+| `merge-objects.js`       | `resource-config.json`                                        | Recursive deep-merge — concatenates inner arrays (`includes`, `excludes`, `bundles`)   |
+| `merge-serialization.js` | `serialization-config.json`                                   | Normalises mixed array/object forms, merges `types`, `lambdaCapturingTypes`, `proxies` |
+
+### Running joiner.sh
+
+```bash
+# Default: search target/, output to target/merged-native-config/
+./joiner.sh
+
+# Specify search and output directories
+./joiner.sh target/graalvm-reachability-metadata merged-output
+
+# Use jbang instead of the native binary
+JSONT="./src/main/java/JsonT.java" ./joiner.sh
+```
+
+The script:
+
+1. Discovers every unique `*-config.json` filename under the search directory
+2. Wraps all files of each type into a single JSON array (`[ <file1>, <file2>, ... ]`)
+3. Pipes that array into `jsont` with the matching merge template
+4. Writes the merged result to the output directory
+
+Example output:
+
+```
+──────────────────────────────────────────────
+  joiner.sh — GraalVM native-image config merger
+  search : target/graalvm-reachability-metadata
+  output : target/merged-native-config
+  jsont  : target/jsont
+──────────────────────────────────────────────
+
+jni-config.json                  10 file(s)  ← merge-arrays.js
+                                wrote 66125 bytes → target/merged-native-config/jni-config.json
+proxy-config.json                15 file(s)  ← merge-arrays.js
+                                wrote 28917 bytes → target/merged-native-config/proxy-config.json
+reflect-config.json             117 file(s)  ← merge-arrays.js
+                                wrote 4163181 bytes → target/merged-native-config/reflect-config.json
+resource-config.json             83 file(s)  ← merge-objects.js
+                                wrote 156007 bytes → target/merged-native-config/resource-config.json
+serialization-config.json         5 file(s)  ← merge-serialization.js
+                                wrote 4990 bytes → target/merged-native-config/serialization-config.json
+```
+
+### Installing the Merged Metadata
+
+Copy the merged configs into your project's native-image metadata directory so they
+are picked up automatically on the next native build:
+
+```bash
+cp target/merged-native-config/*.json \
+    src/main/resources/META-INF/native-image/au.com.devnull/json-transformer/
+```
+
+### How the Templates Work
+
+Each template receives `_` (an array of parsed config file contents) and assigns a
+merged result to `$`.
+
+**`merge-arrays.js`** — concatenates arrays:
+
+```
+const merged = []
+for (const arr of _) {
+    if (Array.isArray(arr)) {
+        for (const item of arr) {
+            merged.push(item)
+        }
+    }
+}
+$ = merged
+```
+
+**`merge-objects.js`** — recursively merges objects, concatenating any inner arrays:
+
+```
+function deepMerge(target, source) {
+  for (const key of Object.keys(source)) {
+    const val = source[key]
+    if (Array.isArray(val)) {
+      if (!Array.isArray(target[key])) target[key] = []
+      for (const item of val) target[key].push(item)
+    } else if (typeof val === 'object' && val !== null) {
+      if (typeof target[key] !== 'object' || target[key] === null) target[key] = {}
+      deepMerge(target[key], val)
+    } else if (!(key in target)) {
+      target[key] = val
+    }
+  }
+  return target
+}
+
+const merged = {}
+for (const obj of _) {
+  if (obj !== null && typeof obj === 'object' && !Array.isArray(obj))
+    deepMerge(merged, obj)
+}
+$ = merged
+```
+
+**`merge-serialization.js`** — handles `serialization-config.json` files that may be
+either a plain array `[...]` or an object `{ types: [...], ... }`, normalising both
+forms before merging.
 
 ## Dependencies
 
