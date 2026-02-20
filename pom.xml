@@ -150,30 +150,30 @@
         <dependency>
             <groupId>mobi.mofokom</groupId>
             <artifactId>graalson-trax</artifactId>
-            <version>1.0.4-SNAPSHOT</version>
+            <version>1.0.3</version>
         </dependency>
         <!-- TODO: remove - use transitive dep -->
         <dependency>
             <groupId>mobi.mofokom</groupId>
             <artifactId>graalson</artifactId>
-            <version>1.0.7-SNAPSHOT</version>
+            <version>1.0.6</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.10.3</version>
+            <version>6.1.0-M1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
-            <version>5.10.3</version>
+            <version>6.1.0-M1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.10.3</version>
+            <version>6.1.0-M1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
