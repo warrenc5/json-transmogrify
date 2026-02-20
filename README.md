@@ -68,7 +68,63 @@ h._source.type,
         'Approach children�s crossing too quickly to stop safely',3,$562,PEDESTRIAN CROSSINGS,'Rule 80 (1)',
 ```
 
-## Native Compliation
+## Native Compilation
+
+Building a native executable produces a standalone binary (`jsont`) that starts instantly and requires no JVM at runtime.
+
+### Prerequisites
+
+- [GraalVM JDK 21+](https://www.graalvm.org/) (install via [SDKMAN](https://sdkman.io/): `sdk install java 21-graal`)
+- Native Image component (included in GraalVM JDK 21+)
+- C toolchain (`gcc`, `glibc-devel`, `zlib-devel` on Linux)
+
+### Build
+
+```bash
+mvn -Pnative install
+```
+
+This runs the full build lifecycle including:
+
+1. **test** — generates resource configuration
+2. **pre-integration-test** — runs the Java agent to collect native-image reachability metadata
+3. **post-integration-test** — compiles the native image using `native-maven-plugin`
+
+The resulting binary is written to `target/jsont`.
+
+### Running the Native Binary
+
+A `run-native.sh` script is provided for quick testing:
+
+```bash
+# run-native.sh
+target/jsont src/test/resources/template.js src/test/resources/ALL_FINES.json  | head
+```
+
+You can also run the binary directly:
+
+```bash
+# With file arguments
+target/jsont template.js input.json output.json UTF-8
+
+# With stdin/stdout
+cat input.json | target/jsont template.js > output.json
+```
+
+### Installing System-Wide
+
+Copy the native binary to a directory on your `PATH` so you can invoke it from anywhere:
+
+```bash
+sudo cp target/jsont /usr/local/bin/jsont
+```
+
+Then use it like any other command:
+
+```bash
+jsont template.js input.json output.json
+cat data.json | jsont template.js > result.json
+```
 
 ## Dependencies
 
