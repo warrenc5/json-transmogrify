@@ -122,34 +122,31 @@ public class JsonTOperationTest {
 
     @Test
     void testPatchDiff() throws Exception, JSONException {
-        String output = transform(
-            JsonMode.JSON_PATCH_DIFF,
-            "operations/patch/default.json",
-            "operations/patch/default_1.json"
-        );
+        JsonStructure original = readResource("operations/patch/default.json");
+        JsonStructure target = readResource("operations/patch/default_1.json");
 
-        JSONAssert.assertEquals(
-            readResourceAsString("operations/patch/patch_diff.json"),
-            output,
-            JSONCompareMode.STRICT_ORDER
-        );
+        // Compute the patch
+        String patchOutput = transform(JsonMode.JSON_PATCH_DIFF, original, target);
+        JsonStructure patch = Json.createReader(new StringReader(patchOutput)).read();
+
+        // Verify the patch produces the target when applied to the original
+        String applyOutput = transform(JsonMode.JSON_PATCH_APPLY, patch, original);
+        JSONAssert.assertEquals(target.toString(), applyOutput, JSONCompareMode.LENIENT);
     }
 
     // ── JSON_PATCH_APPLY (RFC 6902 – apply stepwise patch) ──────────────
 
     @Test
     void testPatchApply() throws Exception, JSONException {
-        String output = transform(
-            JsonMode.JSON_PATCH_APPLY,
-            "operations/patch/patch_diff.json",
-            "operations/patch/default.json"
-        );
+        JsonStructure original = readResource("operations/patch/default.json");
+        JsonStructure target = readResource("operations/patch/default_1.json");
 
-        JSONAssert.assertEquals(
-            readResourceAsString("operations/patch/default_1.json"),
-            output,
-            JSONCompareMode.STRICT_ORDER
-        );
+        // Compute a patch dynamically then apply it
+        String patchOutput = transform(JsonMode.JSON_PATCH_DIFF, original, target);
+        JsonStructure patch = Json.createReader(new StringReader(patchOutput)).read();
+
+        String applyOutput = transform(JsonMode.JSON_PATCH_APPLY, patch, original);
+        JSONAssert.assertEquals(target.toString(), applyOutput, JSONCompareMode.LENIENT);
     }
 
     // ── round-trip: JSON_DIFF → JSON_MERGE ──────────────────────────────

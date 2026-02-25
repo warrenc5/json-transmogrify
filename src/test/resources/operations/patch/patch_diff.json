@@ -14,7 +14,7 @@
     }
   },
   {
-    "op": "replace",
+    "op": "add",
     "path": "/phoneNumber",
     "value": [
       {
