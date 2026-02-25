@@ -1,4 +1,4 @@
-if [ -n target/jsont ] ; then
+if [ ! -x target/jsont ] ; then
     . .env
     native.sh
 fi

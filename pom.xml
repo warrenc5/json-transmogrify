@@ -67,6 +67,7 @@
     </build>
     <profiles>
         <profile>
+            <id>native</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
                 <property>
