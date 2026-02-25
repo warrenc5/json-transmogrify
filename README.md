@@ -4,12 +4,88 @@ https://github.com/warrenc5/graalson-trax
 
 ## Usage
 
-JsonT templateFile [inputJson|-] [outputFile|-] [charset|UTF-8]
+### Transform Mode
 
-- templateFile a javascript location - resourcePath passed to Source constructor
-- inputJson a resourcePath or a filePath or - to indicate STDIN (default)
-- outputFile a filePath or - to indicate STDOUT (default)
-- charset defaults to UTF-8 for input and output.
+```
+JsonT templateFile [inputJson|-] [outputFile|-] [charset|UTF-8]
+```
+
+- **templateFile** — a JavaScript location (resourcePath passed to Source constructor)
+- **inputJson** — a resourcePath or filePath, or `-` for STDIN (default)
+- **outputFile** — a filePath or `-` for STDOUT (default)
+- **charset** — defaults to UTF-8 for input and output
+
+### Operation Mode
+
+```
+JsonT <operation> <operand1|-> <operand2> [outputFile|-]
+```
+
+JsonT supports four structured JSON operations. Either operand can be `-` to read from STDIN, and output always goes to STDOUT (and can be teed to a file).
+
+| Operation | RFC                                            | Description                                                        |
+| --------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| `diff`    | [RFC 7396](http://tools.ietf.org/html/rfc7396) | Compute an RFC 7396 merge patch from two documents                 |
+| `merge`   | [RFC 7396](http://tools.ietf.org/html/rfc7396) | Apply an RFC 7396 merge patch to a document                        |
+| `patch`   | [RFC 6902](http://tools.ietf.org/html/rfc6902) | Compute an RFC 6902 stepwise patch (JSON Patch) from two documents |
+| `apply`   | [RFC 6902](http://tools.ietf.org/html/rfc6902) | Apply an RFC 6902 stepwise patch to a document                     |
+
+**`diff`** and **`merge`** are complementary — `diff` computes a merge patch, `merge` applies it.
+**`patch`** and **`apply`** are complementary — `patch` computes a stepwise diff, `apply` applies it.
+
+#### diff — compute RFC 7396 merge patch
+
+```bash
+# Compare original to result, producing a merge patch
+./JsonT.java diff merge_orig.json merge_result.json | tee merge_patch.json
+
+# From stdin
+cat merge_orig.json | ./JsonT.java diff - merge_result.json
+```
+
+#### merge — apply RFC 7396 merge patch
+
+```bash
+# Apply a merge patch to the original document
+./JsonT.java merge merge_patch.json merge_orig.json | tee merge_result.json
+
+# From stdin
+cat merge_patch.json | ./JsonT.java merge - merge_orig.json
+```
+
+#### patch — compute RFC 6902 stepwise patch
+
+```bash
+# Compute a JSON Patch (array of operations) between two documents
+./JsonT.java patch default.json default_1.json | tee patch_diff.json
+
+# From stdin
+cat default.json | ./JsonT.java patch - default_1.json
+```
+
+#### apply — apply RFC 6902 stepwise patch
+
+```bash
+# Apply a JSON Patch to a document
+./JsonT.java apply patch_diff.json default.json | tee default_1.json
+
+# From stdin
+cat patch_diff.json | ./JsonT.java apply - default.json
+```
+
+#### Chaining operations
+
+Since output always goes to STDOUT, operations can be piped together. For example, compute a diff and immediately apply it:
+
+```bash
+./JsonT.java patch original.json modified.json | ./JsonT.java apply - original.json
+```
+
+Or round-trip a merge diff:
+
+```bash
+./JsonT.java diff original.json modified.json | ./JsonT.java merge - original.json
+```
 
 ### Running with JBang (Recommended)
 
@@ -135,126 +211,6 @@ Then use it like any other command:
 jsont template.js input.json output.json
 cat data.json | jsont template.js > result.json
 ```
-
-## Advanced Usage — Merging GraalVM Native Image Metadata
-
-When building a native image, GraalVM collects reachability metadata (`reflect-config.json`,
-`jni-config.json`, `proxy-config.json`, `resource-config.json`, `serialization-config.json`)
-from many libraries scattered across `target/graalvm-reachability-metadata/`. The included
-`joiner.sh` script uses `jsont` itself to merge all files of each config type into a single
-consolidated file.
-
-### Merge Templates
-
-Three JS templates handle the different config structures:
-
-| Template                 | Config Types                                                  | Strategy                                                                               |
-| ------------------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `merge-arrays.js`        | `reflect-config.json`, `jni-config.json`, `proxy-config.json` | Flat concatenation of top-level JSON arrays                                            |
-| `merge-objects.js`       | `resource-config.json`                                        | Recursive deep-merge — concatenates inner arrays (`includes`, `excludes`, `bundles`)   |
-| `merge-serialization.js` | `serialization-config.json`                                   | Normalises mixed array/object forms, merges `types`, `lambdaCapturingTypes`, `proxies` |
-
-### Running joiner.sh
-
-```bash
-# Default: search target/, output to target/merged-native-config/
-./joiner.sh
-
-# Specify search and output directories
-./joiner.sh target/graalvm-reachability-metadata merged-output
-
-# Use jbang instead of the native binary
-JSONT="./src/main/java/JsonT.java" ./joiner.sh
-```
-
-The script:
-
-1. Discovers every unique `*-config.json` filename under the search directory
-2. Wraps all files of each type into a single JSON array (`[ <file1>, <file2>, ... ]`)
-3. Pipes that array into `jsont` with the matching merge template
-4. Writes the merged result to the output directory
-
-Example output:
-
-```
-──────────────────────────────────────────────
-  joiner.sh — GraalVM native-image config merger
-  search : target/graalvm-reachability-metadata
-  output : target/merged-native-config
-  jsont  : target/jsont
-──────────────────────────────────────────────
-
-jni-config.json                  10 file(s)  ← merge-arrays.js
-                                wrote 66125 bytes → target/merged-native-config/jni-config.json
-proxy-config.json                15 file(s)  ← merge-arrays.js
-                                wrote 28917 bytes → target/merged-native-config/proxy-config.json
-reflect-config.json             117 file(s)  ← merge-arrays.js
-                                wrote 4163181 bytes → target/merged-native-config/reflect-config.json
-resource-config.json             83 file(s)  ← merge-objects.js
-                                wrote 156007 bytes → target/merged-native-config/resource-config.json
-serialization-config.json         5 file(s)  ← merge-serialization.js
-                                wrote 4990 bytes → target/merged-native-config/serialization-config.json
-```
-
-### Installing the Merged Metadata
-
-Copy the merged configs into your project's native-image metadata directory so they
-are picked up automatically on the next native build:
-
-```bash
-cp target/merged-native-config/*.json \
-    src/main/resources/META-INF/native-image/au.com.devnull/json-transformer/
-```
-
-### How the Templates Work
-
-Each template receives `_` (an array of parsed config file contents) and assigns a
-merged result to `$`.
-
-**`merge-arrays.js`** — concatenates arrays:
-
-```
-const merged = []
-for (const arr of _) {
-    if (Array.isArray(arr)) {
-        for (const item of arr) {
-            merged.push(item)
-        }
-    }
-}
-$ = merged
-```
-
-**`merge-objects.js`** — recursively merges objects, concatenating any inner arrays:
-
-```
-function deepMerge(target, source) {
-  for (const key of Object.keys(source)) {
-    const val = source[key]
-    if (Array.isArray(val)) {
-      if (!Array.isArray(target[key])) target[key] = []
-      for (const item of val) target[key].push(item)
-    } else if (typeof val === 'object' && val !== null) {
-      if (typeof target[key] !== 'object' || target[key] === null) target[key] = {}
-      deepMerge(target[key], val)
-    } else if (!(key in target)) {
-      target[key] = val
-    }
-  }
-  return target
-}
-
-const merged = {}
-for (const obj of _) {
-  if (obj !== null && typeof obj === 'object' && !Array.isArray(obj))
-    deepMerge(merged, obj)
-}
-$ = merged
-```
-
-**`merge-serialization.js`** — handles `serialization-config.json` files that may be
-either a plain array `[...]` or an object `{ types: [...], ... }`, normalising both
-forms before merging.
 
 ## Dependencies
 
