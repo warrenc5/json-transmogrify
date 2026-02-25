@@ -1,5 +1,9 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+>
     <modelVersion>4.0.0</modelVersion>
     <groupId>au.com.devnull</groupId>
     <artifactId>json-transformer</artifactId>
@@ -8,9 +12,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <!--
-<native.skip>true</native.skip>
-        -->
+        <native.skip>true</native.skip>
     </properties>
     <build>
         <defaultGoal>install</defaultGoal>
@@ -57,7 +59,7 @@
                         <id>native</id>
                         <phase>post-integration-test</phase>
                         <goals>
-                            <goal>generateResourceConfig</goal> 
+                            <goal>generateResourceConfig</goal>
                             <goal>compile-no-fork</goal>
                         </goals>
                     </execution>
@@ -65,7 +67,7 @@
                 <configuration>
                     <imageName>jsont</imageName>
                     <mainClass>JsonT</mainClass>
-                    <skipNativeBuild>${native.skip}</skipNativeBuild>
+                    <skip>${native.skip}</skip>
                     <agent>
                         <enabled>true</enabled>
                         <defaultMode>Standard</defaultMode>
@@ -96,7 +98,7 @@
                             <!-- you can specify metadataCopy configuration here -->
                         </metadataCopy>
                     </agent>
- 
+
                 </configuration>
             </plugin>
             <plugin>
@@ -117,11 +119,11 @@
                             <arguments>
                                 <argument>-agentlib:native-image-agent=config-output-dir=${project.build.directory}/native-image</argument>
                                 <argument>-classpath</argument>
-                                <classpath/>
+                                <classpath />
                                 <argument>JsonT</argument>
-                                <argument>test-classes/template.js</argument>
-                                <argument>test-classes/ALL_FINES.json</argument>
-                                <argument>all_fines_nsw.json</argument>
+                                <argument>${project.build.directory}/test-classes/template.js</argument>
+                                <argument>${project.build.directory}/test-classes/ALL_FINES.json</argument>
+                                <argument>${project.build.directory}/all_fines_nsw.json</argument>
                                 <argument>UTF8</argument>
                             </arguments>
                         </configuration>
@@ -150,13 +152,13 @@
         <dependency>
             <groupId>mobi.mofokom</groupId>
             <artifactId>graalson-trax</artifactId>
-            <version>1.0.3</version>
+            <version>1.0.4-SNAPSHOT</version>
         </dependency>
         <!-- TODO: remove - use transitive dep -->
         <dependency>
             <groupId>mobi.mofokom</groupId>
             <artifactId>graalson</artifactId>
-            <version>1.0.6</version>
+            <version>1.0.7-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -180,6 +182,12 @@
             <groupId>org.opentest4j</groupId>
             <artifactId>opentest4j</artifactId>
             <version>1.3.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.skyscreamer</groupId>
+            <artifactId>jsonassert</artifactId>
+            <version>1.5.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
