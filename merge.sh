@@ -8,6 +8,6 @@ else
 fi
 #set -x
 ./JsonT.java merge $IN src/test/resources/operations/merge/merge_orig.json - | tee target/merge_result.json
-if [ $STDIN -eq 1 ]; then
+if [ $TEST -eq 0 ]; then
 cat src/test/resources/operations/merge/merge_result.json
 fi

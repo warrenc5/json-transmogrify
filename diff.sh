@@ -9,6 +9,6 @@ else
 fi
 #set -x
 ./JsonT.java diff $IN src/test/resources/operations/merge/merge_result.json - | tee target/merge_patch.json
-if [ $STDIN -eq 1 ]; then
+if [ $TEST -eq 0 ]; then
 cat src/test/resources/operations/merge/merge_patch.json
 fi

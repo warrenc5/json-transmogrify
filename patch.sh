@@ -8,6 +8,6 @@ else
 fi
 #set -x
 ./JsonT.java patch $IN src/test/resources/operations/patch/default_1.json - | tee target/patch_diff.json
-if [ $STDIN -eq 1 ]; then
+if [ $TEST -eq 1 ]; then
 cat src/test/resources/operations/patch/patch_diff.json
 fi
