@@ -7,13 +7,17 @@ https://github.com/warrenc5/graalson-trax
 ### Transform Mode
 
 ```
-JsonT templateFile [inputJson|-] [outputFile|-] [charset|UTF-8]
+JsonT templateFile [inputJson|-] [outputFile|-] [charset|UTF-8] [spaces|4]
 ```
 
 - **templateFile** — a JavaScript location (resourcePath passed to Source constructor)
 - **inputJson** — a resourcePath or filePath, or `-` for STDIN (default)
 - **outputFile** — a filePath or `-` for STDOUT (default)
 - **charset** — defaults to UTF-8 for input and output
+- **spaces** — JSON output indentation (default: 4)
+
+> **Note:** Arguments are positional. If you need to specify `charset` or `spaces`, you must also specify `outputFile` explicitly. Use `-` for STDOUT, e.g.:
+> `./JsonT.java template.js input.json - UTF-8 2`
 
 ### Operation Mode
 
@@ -21,7 +25,7 @@ JsonT templateFile [inputJson|-] [outputFile|-] [charset|UTF-8]
 JsonT <operation> <operand1|-> <operand2> [outputFile|-]
 ```
 
-JsonT supports four structured JSON operations. Either operand can be `-` to read from STDIN, and output always goes to STDOUT (and can be teed to a file).
+JsonT supports four structured JSON operations. Either operand can be `-` to read from STDIN. The optional fourth argument is an output file path, or `-` for STDOUT (the default). Since arguments are positional, use `-` explicitly for STDOUT if subsequent arguments are needed.
 
 | Operation | RFC                                            | Description                                                        |
 | --------- | ---------------------------------------------- | ------------------------------------------------------------------ |
@@ -36,8 +40,11 @@ JsonT supports four structured JSON operations. Either operand can be `-` to rea
 #### diff — compute RFC 7396 merge patch
 
 ```bash
-# Compare original to result, producing a merge patch
-./JsonT.java diff merge_orig.json merge_result.json | tee merge_patch.json
+# Compare original to result, write merge patch to file
+./JsonT.java diff merge_orig.json merge_result.json merge_patch.json
+
+# To stdout (default)
+./JsonT.java diff merge_orig.json merge_result.json
 
 # From stdin
 cat merge_orig.json | ./JsonT.java diff - merge_result.json
@@ -46,8 +53,11 @@ cat merge_orig.json | ./JsonT.java diff - merge_result.json
 #### merge — apply RFC 7396 merge patch
 
 ```bash
-# Apply a merge patch to the original document
-./JsonT.java merge merge_patch.json merge_orig.json | tee merge_result.json
+# Apply a merge patch, write result to file
+./JsonT.java merge merge_patch.json merge_orig.json merge_result.json
+
+# To stdout (default)
+./JsonT.java merge merge_patch.json merge_orig.json
 
 # From stdin
 cat merge_patch.json | ./JsonT.java merge - merge_orig.json
@@ -56,8 +66,11 @@ cat merge_patch.json | ./JsonT.java merge - merge_orig.json
 #### patch — compute RFC 6902 stepwise patch
 
 ```bash
-# Compute a JSON Patch (array of operations) between two documents
-./JsonT.java patch default.json default_1.json | tee patch_diff.json
+# Compute a JSON Patch (array of operations), write to file
+./JsonT.java patch default.json default_1.json patch_diff.json
+
+# To stdout (default)
+./JsonT.java patch default.json default_1.json
 
 # From stdin
 cat default.json | ./JsonT.java patch - default_1.json
@@ -66,8 +79,11 @@ cat default.json | ./JsonT.java patch - default_1.json
 #### apply — apply RFC 6902 stepwise patch
 
 ```bash
-# Apply a JSON Patch to a document
-./JsonT.java apply patch_diff.json default.json | tee default_1.json
+# Apply a JSON Patch, write result to file
+./JsonT.java apply patch_diff.json default.json default_1.json
+
+# To stdout (default)
+./JsonT.java apply patch_diff.json default.json
 
 # From stdin
 cat patch_diff.json | ./JsonT.java apply - default.json
@@ -75,7 +91,7 @@ cat patch_diff.json | ./JsonT.java apply - default.json
 
 #### Chaining operations
 
-Since output always goes to STDOUT, operations can be piped together. For example, compute a diff and immediately apply it:
+When output goes to STDOUT (the default), operations can be piped together. For example, compute a diff and immediately apply it:
 
 ```bash
 ./JsonT.java patch original.json modified.json | ./JsonT.java apply - original.json
