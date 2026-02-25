@@ -1,2 +1,2 @@
 . .env
-mvn -Dnative.skip=false install
+mvn -DskipTests -Pnative -Dnative.skip=false install
