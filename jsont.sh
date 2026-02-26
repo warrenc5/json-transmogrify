@@ -1,0 +1,1 @@
+./JsonT.java $@
