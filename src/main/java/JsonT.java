@@ -1,7 +1,7 @@
 //usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21
 //JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Dpolyglot.engine.WarnInterpreterOnly=false --enable-native-access=ALL-UNNAMED
-//DEPS mobi.mofokom:graalson-trax:1.0.4-SNAPSHOT
+//DEPS mobi.mofokom:graalson-trax:1.0.4
 //FILES README.md
 //MAIN_CLASS JsonT
 
