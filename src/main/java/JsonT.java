@@ -41,6 +41,7 @@ public class JsonT {
         STDOUT = "-",
         UTF8 = "UTF-8",
         IDENTITY = "identity.js",
+        IDENTITY_ARG = ".",
         SPACES = "4";
 
     public static enum Operation {
@@ -101,7 +102,9 @@ public class JsonT {
 
         GraalsonTransformerFactory.useJavaxXmlTransformTransformerFactory();
 
-        String templateFile = args.length < 1 ? IDENTITY : args[0].isBlank() ? IDENTITY : args[0];
+        String templateFile =
+            args.length > 0 && IDENTITY_ARG.equals(args[0]) ? IDENTITY : args[0].isBlank() ? IDENTITY : args[0];
+        System.err.println("templateFile " + templateFile);
 
         Operation operation = Operation.fromString(templateFile);
 
