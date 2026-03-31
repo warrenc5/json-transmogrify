@@ -2,6 +2,8 @@
 //JAVA 21
 //JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Dpolyglot.engine.WarnInterpreterOnly=false --enable-native-access=ALL-UNNAMED
 //DEPS mobi.mofokom:graalson-trax:1.0.4
+//DEPS org.commonmark:commonmark:0.22.0
+//DEPS org.fusesource.jansi:jansi:2.4.1
 //FILES README.md
 //MAIN_CLASS JsonT
 
@@ -19,6 +21,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
@@ -30,6 +33,10 @@ import javax.xml.transform.Source;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import org.commonmark.node.*;
+import org.commonmark.parser.Parser;
+import org.fusesource.jansi.Ansi;
+import org.fusesource.jansi.AnsiConsole;
 
 /**
  *
@@ -87,35 +94,28 @@ public class JsonT {
      */
     public static void main(String[] args) throws IOException, TransformerConfigurationException, TransformerException {
         if (args.length > 0 && "--readme".equals(args[0].trim())) {
-            try (
-                PrintWriter out = new PrintWriter(System.err);
-                InputStream in = ClassLoader.getSystemClassLoader().getResourceAsStream("README.md")
-            ) {
-                int c;
-                while ((c = in.read()) != -1) {
-                    out.write(c);
-                }
-                out.flush();
+            try (InputStream in = ClassLoader.getSystemClassLoader().getResourceAsStream("README.md")) {
+                String md = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                printMarkdown(md, System.err);
             }
             System.exit(1);
         }
 
         if (args.length == 0 || Arrays.asList("/?", "-?", "-h", "--help").contains(args[0].trim())) {
-            PrintWriter out = new PrintWriter(System.err);
+            PrintWriter out = new PrintWriter(System.err, true);
             out.println("Usage: jsont <template> [<input>] [<output>] [<charset>] [<spaces>]");
             out.println();
             out.println("Examples:");
-            out.println("  jsont .                            # pretty-print stdin to stdout");
-            out.println("  jsont . input.json                 # pretty-print a file to stdout");
-            out.println("  jsont template.js input.json       # transform input.json using template.js");
-            out.println("  jsont template.js - output.json    # transform stdin, write to output.json");
-            out.println("  jsont diff   a.json b.json         # produce a JSON diff of two files");
-            out.println("  jsont merge  a.json b.json         # merge two JSON files");
-            out.println("  jsont patch  a.json b.json         # produce a JSON Patch between two files");
-            out.println("  jsont apply  patch.json input.json # apply a JSON Patch to a file");
+            out.println("  jsont .                              # pretty-print stdin to stdout");
+            out.println("  jsont . input.json                   # pretty-print a file to stdout");
+            out.println("  jsont template.js input.json         # transform input.json using template.js");
+            out.println("  jsont template.js - output.json      # transform stdin, write to output.json");
+            out.println("  jsont diff   a.json b.json           # produce a JSON diff of two files");
+            out.println("  jsont merge  a.json b.json           # merge two JSON files");
+            out.println("  jsont patch  a.json b.json           # produce a JSON Patch between two files");
+            out.println("  jsont apply  patch.json input.json   # apply a JSON Patch to a file");
             out.println();
-            out.println("  Use '--readme' for full documentation.");
-            out.flush();
+            out.println("Use '--readme' for full documentation.");
             System.exit(1);
         }
 
@@ -219,6 +219,167 @@ public class JsonT {
             TransformerFactory factory = TransformerFactory.newInstance();
             factory.setAttribute(GraalsonTransformerFactory.JSON_MODE_ATTRIBUTE, JsonMode.JSON_TRANSFORM);
             factory.newTemplates(template).newTransformer().transform(source, result);
+        }
+    }
+
+    /**
+     * Render a Markdown string to the given stream using ANSI escape codes via Jansi.
+     * Supports headings, bold, code spans, fenced code blocks, block quotes, and
+     * horizontal rules. Tables and unrecognised nodes fall back to plain text.
+     */
+    private static void printMarkdown(String markdown, java.io.OutputStream target) {
+        AnsiConsole.systemInstall();
+        try {
+            PrintWriter out = new PrintWriter(
+                new java.io.OutputStreamWriter(target, java.nio.charset.StandardCharsets.UTF_8),
+                true
+            );
+            Parser parser = Parser.builder().build();
+            Node document = parser.parse(markdown);
+            document.accept(
+                new AbstractVisitor() {
+                    int listDepth = 0;
+                    int listItemIndex = 0;
+
+                    @Override
+                    public void visit(Heading h) {
+                        out.println();
+                        String prefix = switch (h.getLevel()) {
+                            case 1 -> Ansi.ansi().bold().fgBrightCyan().toString();
+                            case 2 -> Ansi.ansi().bold().fgCyan().toString();
+                            default -> Ansi.ansi().bold().fgBlue().toString();
+                        };
+                        String reset = Ansi.ansi().reset().toString();
+                        out.print(prefix + "#".repeat(h.getLevel()) + " ");
+                        visitChildren(h);
+                        out.println(reset);
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(Paragraph p) {
+                        visitChildren(p);
+                        out.println();
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(Text t) {
+                        out.print(t.getLiteral());
+                    }
+
+                    @Override
+                    public void visit(SoftLineBreak s) {
+                        out.print(" ");
+                    }
+
+                    @Override
+                    public void visit(HardLineBreak h) {
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(StrongEmphasis s) {
+                        out.print(Ansi.ansi().bold());
+                        visitChildren(s);
+                        out.print(Ansi.ansi().boldOff());
+                    }
+
+                    @Override
+                    public void visit(Emphasis e) {
+                        out.print(Ansi.ansi().fgBrightYellow());
+                        visitChildren(e);
+                        out.print(Ansi.ansi().reset());
+                    }
+
+                    @Override
+                    public void visit(Code c) {
+                        out.print(Ansi.ansi().fgBrightGreen() + "`" + c.getLiteral() + "`" + Ansi.ansi().reset());
+                    }
+
+                    @Override
+                    public void visit(FencedCodeBlock b) {
+                        out.println(Ansi.ansi().fgGreen());
+                        for (String line : b.getLiteral().split("\n")) {
+                            out.println("  " + line);
+                        }
+                        out.print(Ansi.ansi().reset());
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(IndentedCodeBlock b) {
+                        out.println(Ansi.ansi().fgGreen());
+                        for (String line : b.getLiteral().split("\n")) {
+                            out.println("  " + line);
+                        }
+                        out.print(Ansi.ansi().reset());
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(BlockQuote b) {
+                        out.print(Ansi.ansi().fgBrightBlack() + "  > ");
+                        visitChildren(b);
+                        out.print(Ansi.ansi().reset());
+                    }
+
+                    @Override
+                    public void visit(BulletList l) {
+                        listDepth++;
+                        visitChildren(l);
+                        listDepth--;
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(OrderedList l) {
+                        listDepth++;
+                        listItemIndex = l.getMarkerStartNumber();
+                        visitChildren(l);
+                        listDepth--;
+                        listItemIndex = 0;
+                        out.println();
+                    }
+
+                    @Override
+                    public void visit(ListItem item) {
+                        String indent = "  ".repeat(listDepth);
+                        Node parent = item.getParent();
+                        if (parent instanceof OrderedList) {
+                            out.print(indent + Ansi.ansi().bold() + listItemIndex++ + ". " + Ansi.ansi().boldOff());
+                        } else {
+                            out.print(indent + Ansi.ansi().fgBrightCyan() + "• " + Ansi.ansi().reset());
+                        }
+                        visitChildren(item);
+                    }
+
+                    @Override
+                    public void visit(ThematicBreak t) {
+                        out.println(Ansi.ansi().fgBrightBlack() + "─".repeat(72) + Ansi.ansi().reset());
+                    }
+
+                    @Override
+                    public void visit(Link l) {
+                        out.print(Ansi.ansi().fgBrightBlue());
+                        visitChildren(l);
+                        out.print(Ansi.ansi().reset() + " (" + l.getDestination() + ")");
+                    }
+
+                    @Override
+                    public void visit(HtmlBlock h) {
+                        /* skip raw HTML */
+                    }
+
+                    @Override
+                    public void visit(HtmlInline h) {
+                        /* skip raw HTML */
+                    }
+                }
+            );
+            out.flush();
+        } finally {
+            AnsiConsole.systemUninstall();
         }
     }
 
