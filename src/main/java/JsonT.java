@@ -86,7 +86,7 @@ public class JsonT {
      *   args[4] = spaces
      */
     public static void main(String[] args) throws IOException, TransformerConfigurationException, TransformerException {
-        if (args.length == 0 || Arrays.asList("/?", "-?", "-h", "--help").contains(args[0].trim())) {
+        if (args.length > 0 && "--readme".equals(args[0].trim())) {
             try (
                 PrintWriter out = new PrintWriter(System.err);
                 InputStream in = ClassLoader.getSystemClassLoader().getResourceAsStream("README.md")
@@ -100,7 +100,40 @@ public class JsonT {
             System.exit(1);
         }
 
+        if (args.length == 0 || Arrays.asList("/?", "-?", "-h", "--help").contains(args[0].trim())) {
+            PrintWriter out = new PrintWriter(System.err);
+            out.println("Usage: jsont <template> [<input>] [<output>] [<charset>] [<spaces>]");
+            out.println();
+            out.println("Examples:");
+            out.println("  jsont .                            # pretty-print stdin to stdout");
+            out.println("  jsont . input.json                 # pretty-print a file to stdout");
+            out.println("  jsont template.js input.json       # transform input.json using template.js");
+            out.println("  jsont template.js - output.json    # transform stdin, write to output.json");
+            out.println("  jsont diff   a.json b.json         # produce a JSON diff of two files");
+            out.println("  jsont merge  a.json b.json         # merge two JSON files");
+            out.println("  jsont patch  a.json b.json         # produce a JSON Patch between two files");
+            out.println("  jsont apply  patch.json input.json # apply a JSON Patch to a file");
+            out.println();
+            out.println("  Use '--readme' for full documentation.");
+            out.flush();
+            System.exit(1);
+        }
+
         GraalsonTransformerFactory.useJavaxXmlTransformTransformerFactory();
+
+        boolean stdinEmpty = System.in.available() == 0;
+
+        // When stdin is empty and a single arg is given, treat args[0] as the
+        // inputJson file and use the IDENTITY template (i.e. pretty-print mode).
+        if (
+            stdinEmpty &&
+            args.length == 1 &&
+            Operation.fromString(args[0]) == null &&
+            !IDENTITY_ARG.equals(args[0]) &&
+            !args[0].isBlank()
+        ) {
+            args = new String[] { IDENTITY_ARG, args[0] };
+        }
 
         String templateFile =
             args.length > 0 && IDENTITY_ARG.equals(args[0]) ? IDENTITY : args[0].isBlank() ? IDENTITY : args[0];
